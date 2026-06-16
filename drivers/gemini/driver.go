@@ -39,7 +39,7 @@ func New(cfg *ai.Config) (ai.Provider, error) {
 	}
 
 	return &Driver{
-		client: NewClient(cfg.APIKey, baseURL),
+		client: NewClient(cfg.APIKey, baseURL, cfg.MaxRetries),
 		model:  cfg.Model,
 	}, nil
 }
@@ -48,7 +48,7 @@ func New(cfg *ai.Config) (ai.Provider, error) {
 func (d *Driver) Complete(ctx context.Context, systemPrompt, userPrompt, jsonSchema string, opts ai.Options) (string, error) {
 	// Keep a safety buffer for large HTML prompts. Gemini models usually tolerate large inputs,
 	// but we still reject obviously oversized requests before incurring network cost.
-	totalTokens := len(systemPrompt+userPrompt) / 4
+	totalTokens := (len(systemPrompt) + len(userPrompt)) / 4
 	if totalTokens > 900000 {
 		return "", fmt.Errorf("gemini: request too large (~%d tokens); reduce prompt size", totalTokens)
 	}

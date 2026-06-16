@@ -43,7 +43,7 @@ func New(cfg *ai.Config) (ai.Provider, error) {
 	}
 
 	return &Driver{
-		client: NewClient(cfg.APIKey, baseURL),
+		client: NewClient(cfg.APIKey, baseURL, cfg.MaxRetries),
 		model:  cfg.Model,
 	}, nil
 }

@@ -146,6 +146,10 @@ type Config struct {
 
 	// Options allows provider-specific configuration.
 	Options map[string]interface{}
+
+	// MaxRetries is the number of retry attempts on transient errors (429, 5xx).
+	// Zero uses the default (3). Set to -1 to disable retries.
+	MaxRetries int
 }
 
 // Schema defines the prompt template and JSON schema for a completion task.

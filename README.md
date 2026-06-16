@@ -98,11 +98,13 @@ result, err := ap.CompleteWithTools(ctx, system, user, schema,
 
 ## Drivers
 
-| Import path | Provider |
-|---|---|
-| `drivers/openai` | OpenAI (GPT-4o, o-series) |
-| `drivers/anthropic` | Anthropic (Claude) |
-| `drivers/gemini` | Google Gemini |
+| Import path | Provider | Complete | Batch | Agent (tool loop) | Vision |
+|---|---|:---:|:---:|:---:|:---:|
+| `drivers/openai` | OpenAI (GPT-4o, o-series) | ✅ | ✅ | ✅ | ✅ |
+| `drivers/anthropic` | Anthropic (Claude) | ✅ | ✅ | ❌ | ❌ |
+| `drivers/gemini` | Google Gemini | ✅ | ✅ | ❌ | ❌ |
+
+Agent and vision support for Anthropic and Gemini are not yet implemented.
 
 ## Dynamic factory
 
@@ -127,6 +129,13 @@ Paid integration tests hit live APIs and require the relevant `*_API_KEY` enviro
 ```
 go test -tags=paid_integration ./...
 ```
+
+## Roadmap
+
+- **Streaming (`StreamProvider`)** — a fourth optional interface for token-by-token streaming. Designed to support a split-stream pattern where structured JSON output is embedded in the stream between sentinel tokens (`__JSON_START__` / `__JSON_END__`), letting callers pipe narrative text to a UI while still parsing a structured result at the end — without a second round trip.
+- **Agent and vision support** for Anthropic and Gemini drivers.
+- **Gemini paid integration tests.**
+- **Driver support for self-hosted inference** (e.g., vLLM, Ollama).
 
 ## License
 

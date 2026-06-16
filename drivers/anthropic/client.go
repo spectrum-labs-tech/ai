@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/spectrum-labs-tech/ai/internal/httpretry"
 )
 
 // Client is an HTTP client for the Anthropic API.
@@ -20,15 +22,21 @@ type Client struct {
 }
 
 // NewClient creates a new Anthropic API client.
-func NewClient(apiKey, baseURL string) *Client {
+func NewClient(apiKey, baseURL string, maxRetries int) *Client {
 	return &Client{
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
+			Transport: &httpretry.Transport{
+				MaxRetries: maxRetries,
+			},
 		},
 		batchClient: &http.Client{
 			Timeout: 6 * time.Minute,
+			Transport: &httpretry.Transport{
+				MaxRetries: maxRetries,
+			},
 		},
 	}
 }
@@ -142,17 +150,17 @@ func (c *Client) CreateMessage(ctx context.Context, req *messageRequest) (*messa
 
 // SubmitBatch submits a batch of message requests.
 func (c *Client) SubmitBatch(ctx context.Context, req *batchSubmitRequest) (*batchStatusResponse, error) {
-	return c.doBatchJSON(ctx, http.MethodPost, c.baseURL+"/messages/batches", req, false)
+	return c.doBatchJSON(ctx, http.MethodPost, c.baseURL+"/messages/batches", req)
 }
 
 // GetBatch fetches the current status of a batch job.
 func (c *Client) GetBatch(ctx context.Context, batchID string) (*batchStatusResponse, error) {
-	return c.doBatchJSON(ctx, http.MethodGet, fmt.Sprintf("%s/messages/batches/%s", c.baseURL, batchID), nil, false)
+	return c.doBatchJSON(ctx, http.MethodGet, fmt.Sprintf("%s/messages/batches/%s", c.baseURL, batchID), nil)
 }
 
 // CancelBatch attempts to cancel a batch job.
 func (c *Client) CancelBatch(ctx context.Context, batchID string) (*batchStatusResponse, error) {
-	return c.doBatchJSON(ctx, http.MethodPost, fmt.Sprintf("%s/messages/batches/%s/cancel", c.baseURL, batchID), nil, false)
+	return c.doBatchJSON(ctx, http.MethodPost, fmt.Sprintf("%s/messages/batches/%s/cancel", c.baseURL, batchID), nil)
 }
 
 // GetBatchResults downloads the JSONL results stream for a completed batch.
@@ -213,7 +221,7 @@ func (c *Client) doMessageJSON(ctx context.Context, payload *messageRequest) (*m
 	return &out, nil
 }
 
-func (c *Client) doBatchJSON(ctx context.Context, method, url string, payload interface{}, isBatch bool) (*batchStatusResponse, error) {
+func (c *Client) doBatchJSON(ctx context.Context, method, url string, payload interface{}) (*batchStatusResponse, error) {
 	var body io.Reader
 	if payload != nil {
 		bodyBytes, err := json.Marshal(payload)
@@ -260,7 +268,7 @@ func (c *Client) setCommonHeaders(req *http.Request, isBatch bool) {
 }
 
 // CostPerMTokens returns input, cache-read, and output cost per million tokens
-// for a model (batch pricing — 50% off standard rates).
+// for a model at standard (non-batch) rates.
 // Cache-write cost is inputPerM * 1.25; callers compute it inline.
 func CostPerMTokens(model string) (inputPerM, cacheReadPerM, outputPerM float64) {
 	switch model {

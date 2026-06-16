@@ -11,11 +11,6 @@ import (
 	"github.com/spectrum-labs-tech/ai"
 )
 
-// isNotFound reports whether err is an HTTP 404 from the OpenAI client.
-func isNotFound(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "status 404")
-}
-
 const (
 	ModelGPT5Nano  = "gpt-5-nano"
 	ModelGPT54Nano = "gpt-5.4-nano"
@@ -51,7 +46,7 @@ func New(cfg *ai.Config) (ai.Provider, error) {
 	}
 
 	return &Driver{
-		client: NewClient(cfg.APIKey, baseURL),
+		client: NewClient(cfg.APIKey, baseURL, cfg.MaxRetries),
 		model:  cfg.Model,
 	}, nil
 }
@@ -60,7 +55,7 @@ func New(cfg *ai.Config) (ai.Provider, error) {
 func (d *Driver) Complete(ctx context.Context, systemPrompt, userPrompt, jsonSchema string, opts ai.Options) (string, error) {
 	// Estimate token size and refuse if too large.
 	// gpt-5-nano has 272k input limit; we target 240k to leave buffer for response.
-	totalTokens := len(systemPrompt+userPrompt) / 4
+	totalTokens := (len(systemPrompt) + len(userPrompt)) / 4
 	if totalTokens > 240000 {
 		return "", fmt.Errorf("openai: request too large (~%d tokens); reduce prompt size", totalTokens)
 	}
@@ -294,10 +289,21 @@ func (d *Driver) CompleteWithTools(
 	const maxIter = 12
 	for iter := 0; iter < maxIter; iter++ {
 		req := &ChatCompletionRequest{
-			Model:          d.model,
-			Messages:       messages,
-			Temperature:    temperature,
-			ResponseFormat: &ResponseFormat{Type: "json_object"},
+			Model:       d.model,
+			Messages:    messages,
+			Temperature: temperature,
+		}
+		if strings.TrimSpace(jsonSchema) != "" {
+			req.ResponseFormat = &ResponseFormat{
+				Type: "json_schema",
+				JSONSchema: &ResponseFormatJSONSchema{
+					Name:   "response",
+					Strict: true,
+					Schema: json.RawMessage(jsonSchema),
+				},
+			}
+		} else {
+			req.ResponseFormat = &ResponseFormat{Type: "json_object"}
 		}
 		if len(oaiTools) > 0 {
 			req.Tools = oaiTools
@@ -407,9 +413,18 @@ func (d *Driver) buildChatCompletionRequest(systemPrompt, userPrompt, jsonSchema
 			{Role: "user", Content: userContent},
 		},
 		Temperature: temperature,
-		ResponseFormat: &ResponseFormat{
-			Type: "json_object",
-		},
+	}
+	if strings.TrimSpace(jsonSchema) != "" {
+		chatReq.ResponseFormat = &ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &ResponseFormatJSONSchema{
+				Name:   "response",
+				Strict: true,
+				Schema: json.RawMessage(jsonSchema),
+			},
+		}
+	} else {
+		chatReq.ResponseFormat = &ResponseFormat{Type: "json_object"}
 	}
 	if opts.MaxTokens > 0 {
 		chatReq.MaxTokens = opts.MaxTokens
@@ -551,6 +566,8 @@ func parsedModelOrDefault(body json.RawMessage, fallback string) string {
 }
 
 // CostPerMTokens returns input/cached/output cost per million tokens for a model.
+// Returns 0, 0, 0 for unknown models — callers should treat zero cost as "not available"
+// rather than free.
 func CostPerMTokens(model string) (inputPerM, cachedPerM, outputPerM float64) {
 	switch model {
 	case "gpt-5-nano":
@@ -560,6 +577,6 @@ func CostPerMTokens(model string) (inputPerM, cachedPerM, outputPerM float64) {
 	case "gpt-4.1-nano":
 		return 0.10, 0.025, 0.40
 	default:
-		return 0.15, 0.075, 0.60
+		return 0, 0, 0
 	}
 }

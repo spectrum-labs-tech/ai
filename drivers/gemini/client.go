@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/spectrum-labs-tech/ai/internal/httpretry"
 )
 
 // Client is an HTTP client for the Gemini API.
@@ -19,12 +21,15 @@ type Client struct {
 }
 
 // NewClient creates a new Gemini API client.
-func NewClient(apiKey, baseURL string) *Client {
+func NewClient(apiKey, baseURL string, maxRetries int) *Client {
 	return &Client{
 		apiKey:  apiKey,
 		baseURL: strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{
-			Timeout: 6 * time.Minute, // Keep above worker ai-timeout so context deadline remains primary control.
+			Timeout: 6 * time.Minute,
+			Transport: &httpretry.Transport{
+				MaxRetries: maxRetries,
+			},
 		},
 	}
 }

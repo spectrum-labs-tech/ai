@@ -4,13 +4,32 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/spectrum-labs-tech/ai/internal/httpretry"
 )
+
+// APIError represents an HTTP error response from the OpenAI API.
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("OpenAI API error (status %d): %s", e.StatusCode, e.Body)
+}
+
+// isNotFound reports whether err is an HTTP 404 from the OpenAI API.
+func isNotFound(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
+}
 
 // Client is an HTTP client for the OpenAI API.
 type Client struct {
@@ -20,12 +39,15 @@ type Client struct {
 }
 
 // NewClient creates a new OpenAI API client.
-func NewClient(apiKey, baseURL string) *Client {
+func NewClient(apiKey, baseURL string, maxRetries int) *Client {
 	return &Client{
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 6 * time.Minute, // Keep above worker ai-timeout so context deadline remains primary control.
+			Timeout: 6 * time.Minute,
+			Transport: &httpretry.Transport{
+				MaxRetries: maxRetries,
+			},
 		},
 	}
 }
@@ -91,9 +113,17 @@ type MessageImageURLRef struct {
 	URL string `json:"url"`
 }
 
-// ResponseFormat specifies the format of the response.
+// ResponseFormat specifies the format of the model response.
 type ResponseFormat struct {
-	Type string `json:"type"` // "text" or "json_object"
+	Type       string                    `json:"type"`                 // "text", "json_object", or "json_schema"
+	JSONSchema *ResponseFormatJSONSchema `json:"json_schema,omitempty"` // set when Type == "json_schema"
+}
+
+// ResponseFormatJSONSchema configures structured output enforcement.
+type ResponseFormatJSONSchema struct {
+	Name   string          `json:"name"`
+	Strict bool            `json:"strict"`
+	Schema json.RawMessage `json:"schema,omitempty"`
 }
 
 // ChatCompletionResponse is the response structure from OpenAI.
@@ -118,9 +148,9 @@ type Usage struct {
 	PromptTokens            int                      `json:"prompt_tokens"`
 	CompletionTokens        int                      `json:"completion_tokens"`
 	TotalTokens             int                      `json:"total_tokens"`
-	CachedTokens            int                      `json:"cached_tokens,omitempty"`             // Tokens served from prompt cache
-	PromptTokensDetails     *PromptTokensDetails     `json:"prompt_tokens_details,omitempty"`     // Detailed breakdown of prompt tokens
-	CompletionTokensDetails *CompletionTokensDetails `json:"completion_tokens_details,omitempty"` // Detailed breakdown of completion tokens
+	CachedTokens            int                      `json:"cached_tokens,omitempty"`
+	PromptTokensDetails     *PromptTokensDetails     `json:"prompt_tokens_details,omitempty"`
+	CompletionTokensDetails *CompletionTokensDetails `json:"completion_tokens_details,omitempty"`
 }
 
 // FileObject describes an uploaded OpenAI file.
@@ -193,58 +223,49 @@ type OpenAIBatchResponse struct {
 
 // PromptTokensDetails provides a breakdown of prompt token usage.
 type PromptTokensDetails struct {
-	CachedTokens int `json:"cached_tokens,omitempty"` // Number of tokens served from cache
+	CachedTokens int `json:"cached_tokens,omitempty"`
 }
 
 // CompletionTokensDetails provides a breakdown of completion token usage.
 type CompletionTokensDetails struct {
-	ReasoningTokens int `json:"reasoning_tokens,omitempty"` // Tokens used for reasoning (o1 models)
+	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 }
 
 // CreateChatCompletion calls the OpenAI chat completions API.
 func (c *Client) CreateChatCompletion(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, error) {
 	url := fmt.Sprintf("%s/chat/completions", c.baseURL)
 
-	// Marshal request to JSON
 	bodyBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
-	// Set headers
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
 
-	// Send request
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Check for HTTP errors
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
-	// Parse response
 	var chatResp ChatCompletionResponse
 	if err := json.Unmarshal(respBody, &chatResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-
 	return &chatResp, nil
 }
 
@@ -287,7 +308,7 @@ func (c *Client) UploadFile(ctx context.Context, filename string, content []byte
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var out FileObject
@@ -317,7 +338,7 @@ func (c *Client) DownloadFileContent(ctx context.Context, fileID string) ([]byte
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 	return respBody, nil
 }
@@ -367,7 +388,7 @@ func (c *Client) doBatchJSON(ctx context.Context, method, url string, payload in
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var out BatchObject

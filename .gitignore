@@ -1,0 +1,20 @@
+# Binaries
+/bin/
+*.exe
+*.test
+
+# Test output
+coverage.out
+coverage.html
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

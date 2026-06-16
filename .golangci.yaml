@@ -1,0 +1,39 @@
+# golangci-lint configuration
+# Compatible with golangci-lint v2.x
+
+version: "2"
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    # Core linters (enabled by default)
+    - errcheck       # Check for unchecked errors
+    - govet          # Go vet
+    - ineffassign    # Detect ineffectual assignments
+    - staticcheck    # Advanced static analysis
+    - unused         # Find unused code
+
+    # Additional linters
+    - misspell       # Find misspelled words
+    - unconvert      # Remove unnecessary conversions
+    - gosec          # Security issues
+    - bodyclose      # Ensure response bodies are closed
+    - errorlint      # Improve Go error wrapping and comparisons
+    - noctx          # Require context-aware APIs where available
+    - copyloopvar    # Detect loop variable copies that can cause subtle bugs
+    - durationcheck  # Detect invalid duration arithmetic
+    - nolintlint     # Validate nolint directives are well-formed and used
+    - wastedassign   # Detect assignments overwritten before being used
+    - nilerr         # Detect returning nil when err is non-nil
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10
