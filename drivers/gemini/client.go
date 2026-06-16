@@ -220,35 +220,19 @@ func (c *Client) CreateBatch(ctx context.Context, model string, req *BatchGenera
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-goog-api-key", c.apiKey)
-	return c.doBatchRequest(httpReq)
+	return c.doBatchRequest(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyBytes))
 }
 
 // GetBatch retrieves one Gemini batch job.
 func (c *Client) GetBatch(ctx context.Context, batchName string) (*GeminiBatchOperation, error) {
 	endpoint := fmt.Sprintf("%s/%s", c.baseURL, strings.TrimPrefix(batchName, "/"))
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("x-goog-api-key", c.apiKey)
-	return c.doBatchRequest(httpReq)
+	return c.doBatchRequest(ctx, http.MethodGet, endpoint, nil)
 }
 
 // CancelBatch cancels one Gemini batch job.
 func (c *Client) CancelBatch(ctx context.Context, batchName string) (*GeminiBatchOperation, error) {
 	endpoint := fmt.Sprintf("%s/%s:cancel", c.baseURL, strings.TrimPrefix(batchName, "/"))
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("x-goog-api-key", c.apiKey)
-	return c.doBatchRequest(httpReq)
+	return c.doBatchRequest(ctx, http.MethodPost, endpoint, nil)
 }
 
 // UploadJSONLFile uploads a JSONL batch input file using Gemini's resumable File API.
@@ -335,7 +319,15 @@ func (c *Client) DownloadFile(ctx context.Context, fileName string) ([]byte, err
 	return respBody, nil
 }
 
-func (c *Client) doBatchRequest(httpReq *http.Request) (*GeminiBatchOperation, error) {
+func (c *Client) doBatchRequest(ctx context.Context, method, endpoint string, body io.Reader) (*GeminiBatchOperation, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, method, endpoint, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("x-goog-api-key", c.apiKey)
+	if body != nil {
+		httpReq.Header.Set("Content-Type", "application/json")
+	}
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
