@@ -336,7 +336,7 @@ func (c *Client) DownloadFile(ctx context.Context, fileName string) ([]byte, err
 }
 
 func (c *Client) doBatchRequest(httpReq *http.Request) (*GeminiBatchOperation, error) {
-	resp, err := c.httpClient.Do(httpReq) //nolint:gosec // URL is constructed from validated baseURL and API-defined paths by callers.
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

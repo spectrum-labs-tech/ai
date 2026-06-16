@@ -33,6 +33,10 @@ linters:
       - path: _test\.go
         linters:
           - gosec
+      - path: drivers/gemini/client\.go
+        linters:
+          - gosec
+        text: "G704"
 
 issues:
   max-issues-per-linter: 50
