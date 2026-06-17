@@ -29,6 +29,32 @@ tasks:
       - go tool cover -html=coverage.out -o coverage.html
 
   test/paid:
-    desc: Run paid integration tests (requires .env with API keys)
+    desc: Run paid integration tests (requires .env with API keys). Override package with PKG=./drivers/gemini/...
     dotenv: [".env"]
-    cmd: go test {{if eq .RACE "true"}}-race{{end}} -count=1 -tags=paid_integration ./...
+    vars:
+      PKG: '{{.PKG | default "./..."}}'
+    cmd: go test {{if eq .RACE "true"}}-race{{end}} -count=1 -timeout=20m -tags=paid_integration {{.PKG}}
+
+  models/openai:
+    desc: List available OpenAI models (requires OPENAI_API_KEY in .env)
+    dotenv: [".env"]
+    cmd: >
+      curl -sf https://api.openai.com/v1/models
+      -H "Authorization: Bearer $OPENAI_API_KEY"
+      | jq -r '.data[].id' | sort
+
+  models/anthropic:
+    desc: List available Anthropic models (requires ANTHROPIC_API_KEY in .env)
+    dotenv: [".env"]
+    cmd: >
+      curl -sf https://api.anthropic.com/v1/models
+      -H "x-api-key: $ANTHROPIC_API_KEY"
+      -H "anthropic-version: 2023-06-01"
+      | jq -r '.data[].id' | sort
+
+  models/gemini:
+    desc: List available Gemini models (requires GEMINI_API_KEY in .env)
+    dotenv: [".env"]
+    cmd: >
+      curl -sf "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
+      | jq -r '.models[].name' | sort

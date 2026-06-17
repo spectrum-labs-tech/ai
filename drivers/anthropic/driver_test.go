@@ -103,10 +103,16 @@ func TestCostPerMTokens(t *testing.T) {
 		wantCacheReadPerM float64
 		wantOutputPerM    float64
 	}{
-		{"claude-sonnet-4-6", 1.50, 0.15, 7.50},
-		{"claude-opus-4-7", 7.50, 0.75, 37.50},
-		{"claude-haiku-4-5-20251001", 0.40, 0.04, 2.00},
-		{"unknown-model", 1.50, 0.15, 7.50},
+		{ModelClaudeFable5, 10.00, 1.00, 50.00},
+		{ModelClaudeOpus48, 5.00, 0.50, 25.00},
+		{ModelClaudeOpus47, 5.00, 0.50, 25.00},
+		{ModelClaudeOpus46, 5.00, 0.50, 25.00},
+		{ModelClaudeOpus45, 5.00, 0.50, 25.00},
+		{ModelClaudeOpus41, 15.00, 1.50, 75.00},
+		{ModelClaudeSonnet46, 3.00, 0.30, 15.00},
+		{ModelClaudeSonnet45, 3.00, 0.30, 15.00},
+		{ModelClaudeHaiku45, 1.00, 0.10, 5.00},
+		{"unknown-model", 0, 0, 0},
 	}
 
 	for _, tc := range tests {

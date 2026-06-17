@@ -1,36 +1,29 @@
 //go:build paid_integration
 
-package anthropic_test
+package gemini_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/spectrum-labs-tech/ai"
-	"github.com/spectrum-labs-tech/ai/drivers/anthropic"
+	"github.com/spectrum-labs-tech/ai/drivers/gemini"
 )
 
-// TestComplete_JSONSchema verifies that the Anthropic driver can send a complete
-// request with a JSON schema in the system prompt and returns parseable JSON.
-//
-// Run with:
-//
-//	ANTHROPIC_API_KEY=sk-ant-... task go:integration-paid
+// TestComplete_JSONSchema verifies that the Gemini driver can send a complete
+// request with a JSON schema and returns parseable JSON.
 func TestComplete_JSONSchema(t *testing.T) {
 	t.Parallel()
 
 	apiKey := mustAPIKey(t)
 
 	provider, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45, // cheapest model for plumbing tests
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -42,6 +35,7 @@ func TestComplete_JSONSchema(t *testing.T) {
 	schema := `{
 		"type": "object",
 		"required": ["ok"],
+		"additionalProperties": false,
 		"properties": {
 			"ok": { "type": "boolean" }
 		}
@@ -64,17 +58,16 @@ func TestComplete_JSONSchema(t *testing.T) {
 	t.Logf("response: %s", content)
 }
 
-// TestComplete_NoSchema verifies that Complete works when no JSON schema is provided
-// (schema parameter is empty string).
+// TestComplete_NoSchema verifies that Complete works when no JSON schema is provided.
 func TestComplete_NoSchema(t *testing.T) {
 	t.Parallel()
 
 	apiKey := mustAPIKey(t)
 
 	provider, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45,
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -100,18 +93,14 @@ func TestComplete_NoSchema(t *testing.T) {
 
 // TestBatch_SubmitAndPoll verifies the full batch lifecycle:
 // SubmitBatch → GetBatch (poll until ended) → GetBatchResults.
-// This confirms that all three BatchProvider methods work end-to-end and
-// that result parsing produces at least one non-empty Output.
-//
-// Note: Anthropic batch processing can take several minutes — ctx has a 5-minute timeout.
 func TestBatch_SubmitAndPoll(t *testing.T) {
 	// Batch tests take minutes; do not parallelize to avoid unnecessary API cost.
 	apiKey := mustAPIKey(t)
 
 	provider, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45,
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -120,7 +109,7 @@ func TestBatch_SubmitAndPoll(t *testing.T) {
 
 	batchProvider, ok := provider.(ai.BatchProvider)
 	if !ok {
-		t.Fatal("anthropic driver does not implement ai.BatchProvider")
+		t.Fatal("gemini driver does not implement ai.BatchProvider")
 	}
 
 	requests := []ai.BatchRequest{
@@ -131,6 +120,7 @@ func TestBatch_SubmitAndPoll(t *testing.T) {
 			JSONSchema: `{
 				"type": "object",
 				"required": ["ok"],
+				"additionalProperties": false,
 				"properties": {"ok": {"type": "boolean"}}
 			}`,
 			Options: ai.Options{MaxTokens: 64},
@@ -145,13 +135,12 @@ func TestBatch_SubmitAndPoll(t *testing.T) {
 	if job.ID == "" {
 		t.Fatal("SubmitBatch returned empty batch ID")
 	}
-	if job.Provider != "anthropic" {
-		t.Errorf("Provider = %q, want %q", job.Provider, "anthropic")
+	if job.Provider != "gemini" {
+		t.Errorf("Provider = %q, want %q", job.Provider, "gemini")
 	}
 
 	t.Logf("submitted batch %s (status=%s)", job.ID, job.Status)
 
-	// Poll until the batch is done, up to the context deadline.
 	pollCtx := batchCtx(t)
 	var finalJob *ai.BatchJob
 	for {
@@ -172,7 +161,7 @@ func TestBatch_SubmitAndPoll(t *testing.T) {
 			break
 		}
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 
 	if finalJob.Status != "completed" {
@@ -199,17 +188,16 @@ func TestBatch_SubmitAndPoll(t *testing.T) {
 	}
 }
 
-// TestBatch_DuplicateCustomID verifies that submitting a batch with duplicate
-// custom IDs returns an error without making an API call (client-side validation).
+// TestBatch_DuplicateCustomID verifies client-side duplicate custom_id validation.
 func TestBatch_DuplicateCustomID(t *testing.T) {
 	t.Parallel()
 
 	apiKey := mustAPIKey(t)
 
 	provider, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45,
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -238,9 +226,9 @@ func TestBatch_EmptyRequests(t *testing.T) {
 	apiKey := mustAPIKey(t)
 
 	provider, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45,
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -257,95 +245,28 @@ func TestBatch_EmptyRequests(t *testing.T) {
 	t.Logf("got expected error: %v", err)
 }
 
-// TestRawAPIResponse makes a direct HTTP call and logs the full response body.
-// Diagnostic helper — skip unless explicitly needed.
-func TestRawAPIResponse(t *testing.T) {
-	t.Skip("diagnostic only — run manually when debugging raw API responses")
-
-	apiKey := mustAPIKey(t)
-
-	reqBody := map[string]interface{}{
-		"model":      anthropic.ModelClaudeHaiku45,
-		"max_tokens": 64,
-		"system":     "You are a test assistant. Always respond with valid JSON.",
-		"messages": []map[string]string{
-			{"role": "user", "content": `Return {"ok": true}.`},
-		},
-	}
-
-	bodyBytes, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequestWithContext(ctx(t), http.MethodPost, "https://api.anthropic.com/v1/messages", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("HTTP request failed: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	rawBody, _ := io.ReadAll(resp.Body)
-	t.Logf("HTTP status: %d", resp.StatusCode)
-	t.Logf("Raw response body:\n%s", string(rawBody))
-
-	if resp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d\nBody: %s", resp.StatusCode, string(rawBody))
-	}
-}
-
-func mustAPIKey(t *testing.T) string {
-	t.Helper()
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		t.Fatal("ANTHROPIC_API_KEY env var is required for paid integration tests")
-	}
-	return apiKey
-}
-
-// ctx returns a context with a 60-second timeout for single-call tests.
-func ctx(t *testing.T) context.Context {
-	t.Helper()
-	c, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	t.Cleanup(cancel)
-	return c
-}
-
-// batchCtx returns a context with a 5-minute timeout for batch polling tests.
-func batchCtx(t *testing.T) context.Context {
-	t.Helper()
-	c, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
-	t.Cleanup(cancel)
-
-	// Print a friendly reminder so it's obvious when this is the bottleneck.
-	t.Log("batch context: 5 minute timeout (Anthropic batch processing can take several minutes)")
-
-	return c
-}
-
-// TestMapStatus_DriverLevel is a compile-time check that the driver is importable
-// and registers itself. It validates the driver name without making any API call.
+// TestDriverRegistered verifies the driver registers correctly and reports its name.
 func TestDriverRegistered(t *testing.T) {
 	t.Parallel()
 
 	apiKey := mustAPIKey(t)
 
 	p, err := ai.New(&ai.Config{
-		Provider: "anthropic",
+		Provider: "gemini",
 		APIKey:   apiKey,
-		Model:    anthropic.ModelClaudeHaiku45,
+		Model:    gemini.ModelGemini31FlashLite,
 	})
 	if err != nil {
 		t.Fatalf("ai.New: %v", err)
 	}
 	defer func() { _ = p.Close() }()
 
-	if name := p.ProviderName(); name != "anthropic" {
-		t.Errorf("ProviderName() = %q, want %q", name, "anthropic")
+	if name := p.ProviderName(); name != "gemini" {
+		t.Errorf("ProviderName() = %q, want %q", name, "gemini")
 	}
 
-	if model := p.ModelName(); model != anthropic.ModelClaudeHaiku45 {
-		t.Errorf("ModelName() = %q, want %q", model, anthropic.ModelClaudeHaiku45)
+	if model := p.ModelName(); model != gemini.ModelGemini31FlashLite {
+		t.Errorf("ModelName() = %q, want %q", model, gemini.ModelGemini31FlashLite)
 	}
 
 	if _, ok := p.(ai.BatchProvider); !ok {
@@ -353,4 +274,28 @@ func TestDriverRegistered(t *testing.T) {
 	}
 
 	t.Logf("driver registered: provider=%s model=%s implements_batch=true", p.ProviderName(), p.ModelName())
+}
+
+func mustAPIKey(t *testing.T) string {
+	t.Helper()
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		t.Fatal("GEMINI_API_KEY env var is required for paid integration tests")
+	}
+	return apiKey
+}
+
+func ctx(t *testing.T) context.Context {
+	t.Helper()
+	c, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	t.Cleanup(cancel)
+	return c
+}
+
+func batchCtx(t *testing.T) context.Context {
+	t.Helper()
+	c, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
+	t.Cleanup(cancel)
+	t.Log("batch context: 15 minute timeout (Gemini batch processing can take several minutes)")
+	return c
 }

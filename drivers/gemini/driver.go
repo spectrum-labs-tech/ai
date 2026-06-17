@@ -11,7 +11,14 @@ import (
 	"github.com/spectrum-labs-tech/ai"
 )
 
-const defaultModel = "gemini-3.1-flash-lite-preview"
+const (
+	ModelGemini35Flash                 = "gemini-3.5-flash"
+	ModelGemini31FlashLite             = "gemini-3.1-flash-lite"
+	ModelGemini31ProPreview            = "gemini-3.1-pro-preview"
+	ModelGemini31ProPreviewCustomTools = "gemini-3.1-pro-preview-customtools"
+)
+
+const defaultModel = ModelGemini31FlashLite
 
 func init() {
 	ai.Register("gemini", New)
@@ -370,11 +377,17 @@ func mapGeminiBatchEnvelope(env GeminiBatchResultEnvelope, raw []byte) (ai.Batch
 	return result, nil
 }
 
+// costPerMTokens returns input/cached/output cost per million tokens at standard
+// short-context rates. Pro models have a 2x rate above 200k tokens.
+// Returns 0, 0, 0 for unknown models.
 func costPerMTokens(model string) (inputPerM, cachedPerM, outputPerM float64) {
 	switch model {
-	case defaultModel:
-		// Preview model pricing may change. Use 0 until we intentionally publish a cost table.
-		return 0, 0, 0
+	case ModelGemini35Flash:
+		return 1.50, 0.15, 9.00
+	case ModelGemini31FlashLite:
+		return 0.25, 0.025, 1.50
+	case ModelGemini31ProPreview, ModelGemini31ProPreviewCustomTools:
+		return 2.00, 0.20, 12.00
 	default:
 		return 0, 0, 0
 	}

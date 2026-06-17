@@ -12,12 +12,60 @@ import (
 )
 
 const (
-	ModelGPT5Nano  = "gpt-5-nano"
-	ModelGPT54Nano = "gpt-5.4-nano"
-	ModelGPT5Mini  = "gpt-5-mini"
-	ModelGPT5      = "gpt-5"
-	ModelGPT51     = "gpt-5.1"
+	// GPT-5.5 series (latest)
+	ModelGPT55    = "gpt-5.5"
+	ModelGPT55Pro = "gpt-5.5-pro"
+
+	// GPT-5.4 series
 	ModelGPT54     = "gpt-5.4"
+	ModelGPT54Pro  = "gpt-5.4-pro"
+	ModelGPT54Mini = "gpt-5.4-mini"
+	ModelGPT54Nano = "gpt-5.4-nano"
+
+	// GPT-5.2 series
+	ModelGPT52    = "gpt-5.2"
+	ModelGPT52Pro = "gpt-5.2-pro"
+
+	// GPT-5.1 series
+	ModelGPT51 = "gpt-5.1"
+
+	// GPT-5 series
+	ModelGPT5     = "gpt-5"
+	ModelGPT5Pro  = "gpt-5-pro"
+	ModelGPT5Mini = "gpt-5-mini"
+	ModelGPT5Nano = "gpt-5-nano"
+
+	// GPT-4.1 series
+	ModelGPT41     = "gpt-4.1"
+	ModelGPT41Mini = "gpt-4.1-mini"
+	ModelGPT41Nano = "gpt-4.1-nano"
+
+	// GPT-4o series
+	ModelGPT4o         = "gpt-4o"
+	ModelGPT4o20240513 = "gpt-4o-2024-05-13"
+	ModelGPT4oMini     = "gpt-4o-mini"
+
+	// GPT-4 series (legacy)
+	ModelGPT4Turbo         = "gpt-4-turbo"
+	ModelGPT4Turbo20240409 = "gpt-4-turbo-2024-04-09"
+	ModelGPT40613          = "gpt-4-0613"
+
+	// GPT-3.5 series (legacy)
+	ModelGPT35Turbo         = "gpt-3.5-turbo"
+	ModelGPT35Turbo0125     = "gpt-3.5-turbo-0125"
+	ModelGPT35Turbo1106     = "gpt-3.5-turbo-1106"
+	ModelGPT35TurboInstruct = "gpt-3.5-turbo-instruct"
+
+	// Base models (legacy)
+	ModelDavinci002 = "davinci-002"
+	ModelBabbage002 = "babbage-002"
+
+	// o-series reasoning models
+	ModelO4Mini = "o4-mini"
+	ModelO3     = "o3"
+	ModelO3Mini = "o3-mini"
+	ModelO1Pro  = "o1-pro"
+	ModelO1     = "o1"
 )
 
 func init() {
@@ -565,17 +613,96 @@ func parsedModelOrDefault(body json.RawMessage, fallback string) string {
 	return parsed.Model
 }
 
-// CostPerMTokens returns input/cached/output cost per million tokens for a model.
+// CostPerMTokens returns input/cached/output cost per million tokens for a model
+// at standard (non-batch) short-context rates.
 // Returns 0, 0, 0 for unknown models — callers should treat zero cost as "not available"
 // rather than free.
 func CostPerMTokens(model string) (inputPerM, cachedPerM, outputPerM float64) {
 	switch model {
-	case "gpt-5-nano":
-		return 0.05, 0.025, 0.40
-	case "gpt-4o-mini":
-		return 0.15, 0.075, 0.60
-	case "gpt-4.1-nano":
+	// GPT-5.5 series
+	case ModelGPT55:
+		return 5.00, 0.50, 30.00
+	case ModelGPT55Pro:
+		return 30.00, 0, 180.00
+
+	// GPT-5.4 series
+	case ModelGPT54:
+		return 2.50, 0.25, 15.00
+	case ModelGPT54Pro:
+		return 30.00, 0, 180.00
+	case ModelGPT54Mini:
+		return 0.75, 0.075, 4.50
+	case ModelGPT54Nano:
+		return 0.20, 0.02, 1.25
+
+	// GPT-5.2 series
+	case ModelGPT52:
+		return 1.75, 0.175, 14.00
+	case ModelGPT52Pro:
+		return 21.00, 0, 168.00
+
+	// GPT-5.1 series
+	case ModelGPT51:
+		return 1.25, 0.125, 10.00
+
+	// GPT-5 series
+	case ModelGPT5:
+		return 1.25, 0.125, 10.00
+	case ModelGPT5Pro:
+		return 15.00, 0, 120.00
+	case ModelGPT5Mini:
+		return 0.25, 0.025, 2.00
+	case ModelGPT5Nano:
+		return 0.05, 0.005, 0.40
+
+	// GPT-4.1 series
+	case ModelGPT41:
+		return 2.00, 0.50, 8.00
+	case ModelGPT41Mini:
+		return 0.40, 0.10, 1.60
+	case ModelGPT41Nano:
 		return 0.10, 0.025, 0.40
+
+	// GPT-4o series
+	case ModelGPT4o:
+		return 2.50, 1.25, 10.00
+	case ModelGPT4o20240513:
+		return 5.00, 0, 15.00
+	case ModelGPT4oMini:
+		return 0.15, 0.075, 0.60
+
+	// GPT-4 series (legacy)
+	case ModelGPT4Turbo, ModelGPT4Turbo20240409:
+		return 10.00, 0, 30.00
+	case ModelGPT40613:
+		return 30.00, 0, 60.00
+
+	// GPT-3.5 series (legacy)
+	case ModelGPT35Turbo, ModelGPT35Turbo0125:
+		return 0.50, 0, 1.50
+	case ModelGPT35Turbo1106:
+		return 1.00, 0, 2.00
+	case ModelGPT35TurboInstruct:
+		return 1.50, 0, 2.00
+
+	// Base models (legacy)
+	case ModelDavinci002:
+		return 2.00, 0, 2.00
+	case ModelBabbage002:
+		return 0.40, 0, 0.40
+
+	// o-series reasoning models
+	case ModelO4Mini:
+		return 1.10, 0.275, 4.40
+	case ModelO3:
+		return 2.00, 0.50, 8.00
+	case ModelO3Mini:
+		return 1.10, 0.55, 4.40
+	case ModelO1:
+		return 15.00, 7.50, 60.00
+	case ModelO1Pro:
+		return 150.00, 0, 600.00
+
 	default:
 		return 0, 0, 0
 	}

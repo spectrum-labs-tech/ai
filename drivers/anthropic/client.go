@@ -269,16 +269,29 @@ func (c *Client) setCommonHeaders(req *http.Request, isBatch bool) {
 
 // CostPerMTokens returns input, cache-read, and output cost per million tokens
 // for a model at standard (non-batch) rates.
-// Cache-write cost is inputPerM * 1.25; callers compute it inline.
+// Cache-write cost is inputPerM * 1.25 (5-min) or 2x (1-hour); callers compute it inline.
+// Returns 0, 0, 0 for unknown models — callers should treat zero cost as "not available".
 func CostPerMTokens(model string) (inputPerM, cacheReadPerM, outputPerM float64) {
 	switch model {
-	case "claude-sonnet-4-6":
-		return 1.50, 0.15, 7.50
-	case "claude-opus-4-7":
-		return 7.50, 0.75, 37.50
-	case "claude-haiku-4-5-20251001":
-		return 0.40, 0.04, 2.00
+	case ModelClaudeFable5:
+		return 10.00, 1.00, 50.00
+	case ModelClaudeOpus48:
+		return 5.00, 0.50, 25.00
+	case ModelClaudeOpus47:
+		return 5.00, 0.50, 25.00
+	case ModelClaudeOpus46:
+		return 5.00, 0.50, 25.00
+	case ModelClaudeOpus45:
+		return 5.00, 0.50, 25.00
+	case ModelClaudeOpus41:
+		return 15.00, 1.50, 75.00
+	case ModelClaudeSonnet46:
+		return 3.00, 0.30, 15.00
+	case ModelClaudeSonnet45:
+		return 3.00, 0.30, 15.00
+	case ModelClaudeHaiku45:
+		return 1.00, 0.10, 5.00
 	default:
-		return 1.50, 0.15, 7.50
+		return 0, 0, 0
 	}
 }

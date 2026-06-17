@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/spectrum-labs-tech/ai"
-	_ "github.com/spectrum-labs-tech/ai/drivers/openai" // register driver
+	"github.com/spectrum-labs-tech/ai/drivers/openai"
 )
 
 // TestComplete_ParameterCompatibility verifies that the OpenAI driver sends the
@@ -37,7 +37,7 @@ func TestComplete_ParameterCompatibility(t *testing.T) {
 	provider, err := ai.New(&ai.Config{
 		Provider: "openai",
 		APIKey:   apiKey,
-		Model:    "gpt-5-nano",
+		Model:    openai.ModelGPT5Nano,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -50,6 +50,7 @@ func TestComplete_ParameterCompatibility(t *testing.T) {
 	schema := `{
 		"type": "object",
 		"required": ["ok"],
+		"additionalProperties": false,
 		"properties": {
 			"ok": { "type": "boolean" }
 		}
@@ -88,7 +89,7 @@ func TestComplete_TemperatureDefault(t *testing.T) {
 	provider, err := ai.New(&ai.Config{
 		Provider: "openai",
 		APIKey:   apiKey,
-		Model:    "gpt-5-nano",
+		Model:    openai.ModelGPT5Nano,
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -100,7 +101,7 @@ func TestComplete_TemperatureDefault(t *testing.T) {
 	content, err := provider.Complete(ctx(t),
 		`You are a test assistant. Always respond with valid JSON.`,
 		`Return a JSON object with a single string field "answer" set to "yes".`,
-		`{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}}}`,
+		`{"type":"object","required":["answer"],"additionalProperties":false,"properties":{"answer":{"type":"string"}}}`,
 		opts,
 	)
 	if err != nil {

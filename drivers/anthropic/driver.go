@@ -12,9 +12,15 @@ import (
 )
 
 const (
-	ModelClaudeHaiku45  = "claude-haiku-4-5-20251001"
-	ModelClaudeSonnet46 = "claude-sonnet-4-6"
-	ModelClaudeOpus47   = "claude-opus-4-7"
+	ModelClaudeFable5        = "claude-fable-5"
+	ModelClaudeOpus48        = "claude-opus-4-8"
+	ModelClaudeOpus47        = "claude-opus-4-7"
+	ModelClaudeOpus46        = "claude-opus-4-6"
+	ModelClaudeOpus45        = "claude-opus-4-5-20251101"
+	ModelClaudeOpus41        = "claude-opus-4-1-20250805"
+	ModelClaudeSonnet46      = "claude-sonnet-4-6"
+	ModelClaudeSonnet45      = "claude-sonnet-4-5-20250929"
+	ModelClaudeHaiku45       = "claude-haiku-4-5-20251001"
 )
 
 func init() {
