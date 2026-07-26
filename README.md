@@ -16,8 +16,13 @@ import (
     _ "github.com/spectrum-labs-tech/ai/drivers/openai"
     // _ "github.com/spectrum-labs-tech/ai/drivers/anthropic"
     // _ "github.com/spectrum-labs-tech/ai/drivers/gemini"
+    // _ "github.com/spectrum-labs-tech/ai/drivers/otium"
 )
 ```
+
+The `otium` driver targets an OpenAI-compatible endpoint and **requires** `Config.BaseURL`
+(it is never defaulted) — set it to your Otium endpoint, e.g. `ai.New(&ai.Config{Provider:
+"otium", APIKey: key, BaseURL: url, Model: otium.ModelOtiumMedium})`.
 
 ## Quick start
 
@@ -103,6 +108,7 @@ result, err := ap.CompleteWithTools(ctx, system, user, schema,
 | `drivers/openai` | OpenAI | ✅ | ✅ | ✅ | ✅ |
 | `drivers/anthropic` | Anthropic | ✅ | ✅ | ❌ | ❌ |
 | `drivers/gemini` | Google Gemini | ✅ | ✅ | ❌ | ❌ |
+| `drivers/otium` | Otium (OpenAI-compatible) | ✅ | ✅ | ❌ | ✅ |
 
 Agent and vision support for Anthropic and Gemini are not yet implemented.
 
