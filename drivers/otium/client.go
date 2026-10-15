@@ -58,9 +58,11 @@ func NewClient(apiKey, baseURL string, maxRetries int) *Client {
 
 // ChatCompletionRequest is the request body for chat completions.
 type ChatCompletionRequest struct {
-	Model          string          `json:"model"`
-	Messages       []Message       `json:"messages"`
-	Temperature    float64         `json:"temperature,omitempty"`
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
+	// Temperature is nil when the caller set none, so the model's default applies; a
+	// value, 0 included, is sent as set.
+	Temperature    *float64        `json:"temperature,omitempty"`
 	MaxTokens      int             `json:"max_completion_tokens,omitempty"`
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 }

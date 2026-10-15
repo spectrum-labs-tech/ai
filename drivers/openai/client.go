@@ -54,9 +54,11 @@ func NewClient(apiKey, baseURL string, maxRetries int) *Client {
 
 // ChatCompletionRequest is the request structure for chat completions.
 type ChatCompletionRequest struct {
-	Model          string          `json:"model"`
-	Messages       []Message       `json:"messages"`
-	Temperature    float64         `json:"temperature,omitempty"`
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
+	// Temperature is nil when the caller set none or the model takes no temperature
+	// (temperatureFor); a value, 0 included, is sent as set.
+	Temperature    *float64        `json:"temperature,omitempty"`
 	MaxTokens      int             `json:"max_completion_tokens,omitempty"`
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 	Tools          []Tool          `json:"tools,omitempty"`
@@ -115,7 +117,7 @@ type MessageImageURLRef struct {
 
 // ResponseFormat specifies the format of the model response.
 type ResponseFormat struct {
-	Type       string                    `json:"type"`                 // "text", "json_object", or "json_schema"
+	Type       string                    `json:"type"`                  // "text", "json_object", or "json_schema"
 	JSONSchema *ResponseFormatJSONSchema `json:"json_schema,omitempty"` // set when Type == "json_schema"
 }
 

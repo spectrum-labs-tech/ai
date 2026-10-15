@@ -294,10 +294,7 @@ func (d *Driver) CompleteWithTools(
 		fullSystem += "\n\nJSON schema for your response:\n" + jsonSchema
 	}
 
-	temperature := 0.0
-	if opts.Temperature != nil {
-		temperature = *opts.Temperature
-	}
+	temperature := temperatureFor(d.model, opts)
 
 	// Build initial user message — multimodal when an image is attached.
 	var userContent any
@@ -432,10 +429,7 @@ func (d *Driver) CompleteWithTools(
 }
 
 func (d *Driver) buildChatCompletionRequest(systemPrompt, userPrompt, jsonSchema string, opts ai.Options) *ChatCompletionRequest {
-	temperature := 0.0
-	if opts.Temperature != nil {
-		temperature = *opts.Temperature
-	}
+	temperature := temperatureFor(d.model, opts)
 
 	fullSystem := systemPrompt
 	if jsonSchema != "" {
@@ -706,4 +700,18 @@ func CostPerMTokens(model string) (inputPerM, cachedPerM, outputPerM float64) {
 	default:
 		return 0, 0, 0
 	}
+}
+
+// temperatureFor is the temperature to send model: the caller's, or nil for the model's
+// default. The GPT-5 family and the o-series reasoning models accept only their default and
+// answer any temperature with a 400, so none is sent to them; a caller asking those models for
+// determinism gets the default, as before.
+func temperatureFor(model string, opts ai.Options) *float64 {
+	m := strings.ToLower(model)
+	for _, prefix := range []string{"gpt-5", "o1", "o3", "o4"} {
+		if strings.HasPrefix(m, prefix) {
+			return nil
+		}
+	}
+	return ai.CopyFloat(opts.Temperature)
 }

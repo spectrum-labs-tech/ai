@@ -274,3 +274,13 @@ func Drivers() []string {
 	}
 	return list
 }
+
+// CopyFloat returns a copy of *v, or nil. Drivers use it to pass Options.Temperature into a
+// request body without sharing the caller's pointer.
+func CopyFloat(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	c := *v
+	return &c
+}

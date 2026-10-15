@@ -204,11 +204,6 @@ func (d *Driver) GetBatchResults(ctx context.Context, batchID string) ([]ai.Batc
 // buildChatCompletionRequest assembles a chat request, folding the JSON schema into the
 // system prompt (belt-and-suspenders with response_format) and attaching an image when set.
 func (d *Driver) buildChatCompletionRequest(systemPrompt, userPrompt, jsonSchema string, opts ai.Options) *ChatCompletionRequest {
-	temperature := 0.0
-	if opts.Temperature != nil {
-		temperature = *opts.Temperature
-	}
-
 	fullSystem := systemPrompt
 	if jsonSchema != "" {
 		fullSystem += "\n\nJSON schema for your response:\n" + jsonSchema
@@ -228,7 +223,7 @@ func (d *Driver) buildChatCompletionRequest(systemPrompt, userPrompt, jsonSchema
 			{Role: "system", Content: fullSystem},
 			{Role: "user", Content: userContent},
 		},
-		Temperature: temperature,
+		Temperature: ai.CopyFloat(opts.Temperature),
 	}
 	if strings.TrimSpace(jsonSchema) != "" {
 		req.ResponseFormat = &ResponseFormat{

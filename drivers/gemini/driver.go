@@ -233,11 +233,6 @@ func estimateCost(model string, promptTokens, completionTokens, cachedTokens int
 }
 
 func (d *Driver) buildGenerateContentRequest(systemPrompt, userPrompt, jsonSchema string, opts ai.Options) *GenerateContentRequest {
-	temperature := 0.0
-	if opts.Temperature != nil {
-		temperature = *opts.Temperature
-	}
-
 	req := &GenerateContentRequest{
 		Contents: []Content{
 			{
@@ -248,7 +243,7 @@ func (d *Driver) buildGenerateContentRequest(systemPrompt, userPrompt, jsonSchem
 			},
 		},
 		GenerationConfig: &GenerationConfig{
-			Temperature:      temperature,
+			Temperature:      ai.CopyFloat(opts.Temperature),
 			ResponseMIMEType: "application/json",
 		},
 	}

@@ -54,7 +54,7 @@ type Part struct {
 
 // GenerationConfig controls model generation behavior.
 type GenerationConfig struct {
-	Temperature        float64         `json:"temperature,omitempty"`
+	Temperature        *float64        `json:"temperature,omitempty"` // nil: the model's default
 	MaxOutputTokens    int             `json:"maxOutputTokens,omitempty"`
 	ResponseMIMEType   string          `json:"responseMimeType,omitempty"`
 	ResponseJSONSchema json.RawMessage `json:"responseJsonSchema,omitempty"`
