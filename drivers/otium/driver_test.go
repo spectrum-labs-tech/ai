@@ -168,6 +168,46 @@ func TestGetBatchResults(t *testing.T) {
 	}
 }
 
+func TestGetBatch_DecodesLineErrors(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, body, want string
+	}{
+		{
+			name: "every line rejected",
+			body: `{"id":"batch-1","object":"batch","status":"failed","request_counts":{"total":2,"completed":0,"failed":2},` +
+				`"errors":{"object":"list","data":[` +
+				`{"code":"model_not_found","message":"selection: unknown or unavailable product: \"otium-preview-x\"","line":1},` +
+				`{"code":"model_not_found","message":"selection: unknown or unavailable product: \"otium-preview-x\"","line":2}]}}`,
+			want: `model_not_found: selection: unknown or unavailable product: "otium-preview-x" (and 1 more lines)`,
+		},
+		{
+			name: "one line rejected",
+			body: `{"id":"batch-1","object":"batch","status":"failed","errors":{"object":"list","data":[{"code":"invalid_request","message":"bad body","line":3}]}}`,
+			want: "invalid_request: bad body",
+		},
+		{
+			name: "no errors",
+			body: `{"id":"batch-1","object":"batch","status":"completed","request_counts":{"total":1,"completed":1,"failed":0}}`,
+			want: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := newTestDriver(t, ModelOtiumMedium, func(_ *http.Request) (*http.Response, error) {
+				return jsonResp(tc.body), nil
+			})
+			batch, err := d.client.GetBatch(t.Context(), "batch-1")
+			if err != nil {
+				t.Fatalf("GetBatch() error = %v", err)
+			}
+			if got := batch.ErrorSummary(); got != tc.want {
+				t.Errorf("ErrorSummary() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCostPerMTokens(t *testing.T) {
 	t.Parallel()
 	// Known tiers priced; unknown returns 0,0,0 ("not available").

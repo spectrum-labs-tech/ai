@@ -165,6 +165,37 @@ type BatchObject struct {
 	CancelledAt      *int64             `json:"cancelled_at,omitempty"`
 	RequestCounts    BatchRequestCounts `json:"request_counts"`
 	Metadata         map[string]string  `json:"metadata,omitempty"`
+	// Errors lists why input lines were rejected, e.g. model_not_found for a SKU the
+	// key cannot use; a batch whose every line is rejected fails with only this as the reason.
+	Errors *BatchErrors `json:"errors,omitempty"`
+}
+
+// BatchErrors is the list of input-line errors on a batch.
+type BatchErrors struct {
+	Object string       `json:"object"`
+	Data   []BatchError `json:"data"`
+}
+
+// BatchError is one rejected input line.
+type BatchError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Param   string `json:"param,omitempty"`
+	Line    int    `json:"line,omitempty"`
+}
+
+// ErrorSummary describes the batch's first error and how many lines it rejected,
+// or returns "" when the batch reports none.
+func (b *BatchObject) ErrorSummary() string {
+	if b.Errors == nil || len(b.Errors.Data) == 0 {
+		return ""
+	}
+	first := b.Errors.Data[0]
+	s := first.Code + ": " + first.Message
+	if n := len(b.Errors.Data); n > 1 {
+		s += fmt.Sprintf(" (and %d more lines)", n-1)
+	}
+	return s
 }
 
 // CreateBatchRequest submits a new batch job.
